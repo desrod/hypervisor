@@ -28,241 +28,250 @@ if [[ "$EUID" -ne "0" ]]; then
 fi
       
 # Set Output Formatting Variables:
-SEP_1="------------------------------------------------------------------+"
-SEP_2="       |"
-SEP_3="       +"
+sep_1="------------------------------------------------------------------+"
+sep_2="       |"
+sep_3="       +"
 
 # Set Bridge-Builder Variables 
 # Used unless otherwise set by flags at run-time
-echo "[o00.0b]$SEP_1"
-echo "$SEP_2 Setting Default Variables"
-OBB_VERSION=v00.81.a
+echo "[o00.0b]$sep_1"
+echo "$sep_2 Setting Default Variables"
+obb_version=v00.81.a
 #Distribution Specific System Service Names
-LXD_SERVICE="lxd.service"
-OVS_SERVICE="openvswitch-switch.service"
-LIBVIRT_SERVICE="libvirtd.service"
+lxd_service="lxd.service"
+ovs_service="openvswitch-switch.service"
+libvirt_service="libvirtd.service"
 # Default Variables
-DEFAULT_NETWORK_NAME="obb"
-NETWORK_NAME="$DEFAULT_NETWORK_NAME"
-TMP_FILE_STORE=/tmp/bridge-builder/
-BRIDGE_DRIVER="openvswitch"
-PURGE_NETWORK=false
-SHOW_CONFIG=false
-SHOW_HEALTH=false
-SHOW_HELP=false
-WORK_DIR=$(pwd)
+default_network_name="obb"
+network_name="$default_network_name"
+tmp_file_store=/tmp/bridge-builder/
+bridge_driver="openvswitch"
+purge_network=false
+show_config=false
+show_health=false
+show_help=false
+work_dir=$(pwd)
 
 # Read variables from command line
-echo "$SEP_2 Enabling Command Line Options"
-OPTS=`getopt -o phnsHz: --long help,name,show,health,purge: -n 'parse-options' -- "$@"`
+echo "$sep_2 Enabling Command Line Options"
+OPTS=$(getopt -o phnsHz: --long help,name,show,health,purge: -n 'parse-options' -- "$@")
 
 # Fail if options are not sane
-echo "$SEP_2 Checking Command Line Option Sanity"
+echo "$sep_2 Checking Command Line Option Sanity"
 if [ $? != 0 ] ; 
-    then echo "$SEP_2 Failed parsing options ... Exiting!" >&2 ; 
+    then echo "$sep_2 Failed parsing options ... Exiting!" >&2 ; 
         exit 1
 fi
 
 eval set -- "$OPTS"
 
 # Parse variables
-echo "$SEP_2 Parsing Command Line Options"
+echo "$sep_2 Parsing Command Line Options"
 while true; do
     case "$1" in
-        -h | --help ) SHOW_HELP=true; shift ;;
-        -n | --name ) NETWORK_NAME="$3"; shift; shift ;;
-        -s | --show ) SHOW_CONFIG=true; shift;;
-        -H | --health ) SHOW_HEALTH=true; shift ;;
-        -p | --purge ) PURGE_NETWORK="$3"; shift; shift ;;
+        -h | --help ) show_help=true; shift ;;
+        -n | --name ) network_name="$3"; shift; shift ;;
+        -s | --show ) show_config=true; shift;;
+        -H | --health ) show_health=true; shift ;;
+        -p | --purge ) purge_network="$3"; shift; shift ;;
         -- ) shift; break ;;
         * ) break ;;
     esac
 done
-echo "[o00.0e]$SEP_1"
+echo "[o00.0e]$sep_1"
 
-print_VARS () {
+
+######################################################################
+print_vars () {
 #Print option values
-echo "[d00.0b]$SEP_1"
-echo "       | SHOW_HELP     =  $SHOW_HELP"
-echo "       | NETWORK_NAME  =  $NETWORK_NAME"
-echo "       | SHOW_CONFIG   =  $SHOW_CONFIG"
-echo "       | SHOW_HEALTH   =  $SHOW_HEALTH"
-echo "       | PURGE_NETWORK =  $PURGE_NETWORK"
+echo "[d00.0b]$sep_1"
+echo "       | SHOW_HELP     =  $show_help"
+echo "       | NETWORK_NAME  =  $network_name"
+echo "       | SHOW_CONFIG   =  $show_config"
+echo "       | SHOW_HEALTH   =  $show_health"
+echo "       | PURGE_NETWORK =  $purge_network"
 echo "       | Confirmed command line options are useable .... Continuing"
-echo "[d00.0e]$SEP_1"
+echo "[d00.0e]$sep_1"
 }
 
 #Debug & Testing break
 DBG () {
     echo "       | NOTICE: DBG Calls Enabled"
-    print_VARS
+    print_vars
 #    exit 0
 }
 DBG
 
-end_BUILD () {
+
+######################################################################
+end_build () {
 # Confirm end of setup script 
-echo "[f0e.0s]$SEP_1"
-echo "$SEP_2 $NETWORK_NAME Build complete for LXD and KVM"
-echo "[f0e.0e]$SEP_1"
+echo "[f0e.0s]$sep_1"
+echo "$sep_2 $network_name Build complete for LXD and KVM"
+echo "[f0e.0e]$sep_1"
 }
 
-config_LIBVIRT () {
+
+######################################################################
+config_libvirt () {
 # create virsh network xml & define new virsh network
-echo "[f08.0s]$SEP_1"
-echo "$SEP_2 Configuring Network Definitions for Libvirtd+KVM+QEMU"
+echo "[f08.0s]$sep_1"
+echo "$sep_2 Configuring Network Definitions for Libvirtd+KVM+QEMU"
 # Set VIRSH Working Variables
-VIRSH_XML_FILE=$NETWORK_NAME.xml 
-VIRSH_XML_PATH="/var/lib/libvirt/network-config" 
-VIRSH_XML_TARGET=$VIRSH_XML_PATH/$VIRSH_XML_FILE
+virsh_xml_file=$network_name.xml 
+virsh_xml_path="/var/lib/libvirt/network-config" 
+virsh_xml_target=$virsh_xml_path/$virsh_xml_file
 
 # Create xml file path and file
-echo "[f08.1r]$SEP_1"
-echo "$SEP_2 Creating virsh network xml configuration file"
-    mkdir -p $VIRSH_XML_PATH 
-echo "$SEP_2 Creating virsh network xml directory"
+echo "[f08.1r]$sep_1"
+echo "$sep_2 Creating virsh network xml configuration file"
+    mkdir -p $virsh_xml_path 
+echo "$sep_2 Creating virsh network xml directory"
 
 # Write xml configuration
-echo "[f08.2r]$SEP_1"
-echo "$SEP_2 Writing configuration: 
-$SEP_2       > $VIRSH_XML_PATH/$VIRSH_XML_FILE"
-cat >$VIRSH_XML_TARGET <<EOF
+echo "[f08.2r]$sep_1"
+echo "$sep_2 Writing configuration: 
+$sep_2       > $virsh_xml_path/$virsh_xml_file"
+cat > "$virsh_xml_target" <<EOF
 <network>
-  <name>$NETWORK_NAME</name>
+  <name>$network_name</name>
   <forward mode='bridge'/>
-  <bridge name='$NETWORK_NAME' />
+  <bridge name='$network_name' />
   <virtualport type='openvswitch'/>
 </network>
 EOF
-echo "$SEP_2 $VIRSH_XML_FILE VIRSH XML Config Written"
+echo "$sep_2 $virsh_xml_file VIRSH XML Config Written"
 
-# Defining libvirt network $NETWORK_NAME
-echo "[f08.3r]$SEP_1"
-echo "$SEP_2 Creating virsh network from $VIRSH_XML_TARGET"
-echo "$SEP_3
- "
-    virsh net-define $VIRSH_XML_TARGET 
-echo "$SEP_3"
-echo "$SEP_2 > Defined virsh network from $VIRSH_XML_FILE"
+# Defining libvirt network $network_name
+echo "[f08.3r]$sep_1"
+echo "$sep_2 Creating virsh network from $virsh_xml_target"
+echo "$sep_3"
+    virsh net-define "$virsh_xml_target"
+echo "$sep_3"
+echo "$sep_2 > Defined virsh network from $virsh_xml_file"
 
 #Starting Libvirt network
-echo "$SEP_3"
-echo "[f08.4r] Starting virsh $NETWORK_NAME"
-echo "$SEP_3
+echo "$sep_3"
+echo "[f08.4r] Starting virsh $network_name"
+echo "$sep_3
  "
-virsh net-start $NETWORK_NAME
+virsh net-start "$network_name"
 # Setting network to auto-start at boot
-echo "$SEP_3"
-echo "$SEP_2 Switching virsh $NETWORK_NAME to autostart"
-echo "$SEP_3
+echo "$sep_3"
+echo "$sep_2 Switching virsh $network_name to autostart"
+echo "$sep_3
  "
-virsh net-autostart $NETWORK_NAME
+virsh net-autostart "$network_name"
 
-echo "$SEP_3"
-echo "[f08.0e] Done Configuring Libvirt $NETWORK_NAME"
+echo "$sep_3"
+echo "[f08.0e] Done Configuring Libvirt $network_name"
 }
 
+
+######################################################################
 # Create initial bridge with OVS driver & configure LXD
-config_LXD () {
+config_lxd () {
 # Create network via LXD API
-echo "[f07.0s]$SEP_1"
-echo "$SEP_2 Building LXD Network \"$NETWORK_NAME\" using \"$BRIDGE_DRIVER\" driver"
-echo "$SEP_3
+echo "[f07.0s]$sep_1"
+echo "$sep_2 Building LXD Network \"$network_name\" using \"$bridge_driver\" driver"
+echo "$sep_3
 "
-lxc network create $NETWORK_NAME 
+lxc network create "$network_name"
 echo "
-$SEP_3"
-    echo "$SEP_2 Created LXD Network $NETWORK_NAME"
+$sep_3"
+    echo "$sep_2 Created LXD Network $network_name"
 
 # Setup network driver type
-echo "[f07.1r]$SEP_1"
-lxc network set $NETWORK_NAME \
-    bridge.driver $BRIDGE_DRIVER 
-    echo "$SEP_2 Configured $NETWORK_NAME with $BRIDGE_DRIVER driver"
+echo "[f07.1r]$sep_1"
+lxc network set "$network_name" \
+    bridge.driver $bridge_driver 
+    echo "$sep_2 Configured $network_name with $bridge_driver driver"
 
 ## DNS configuration Options
 # define default domain name:
-#echo "[f07.2r]$SEP_1"
-#lxc network set $NETWORK_NAME \
+#echo "[f07.2r]$sep_1"
+#lxc network set "$network_name" \
 #    dns.domain $DNS_DOMAIN 
-#    echo "$SEP_2 Configured $NETWORK_NAME with default domain name: $DNS_DOMAIN"  
+#    echo "$sep_2 Configured "$network_name" with default domain name: $DNS_DOMAIN"  
 # define dns mode = set via hostname
-#lxc network set $NETWORK_NAME \
+#lxc network set "$network_name" \
 #    dns.mode dynamic         
 
 echo "[f07.3r] Disabling LXD IP Configuration"
 # Set ipv4 address on bridge
-lxc network set $NETWORK_NAME \
+lxc network set "$network_name" \
     ipv4.address none        
 # Set ipv6 address on bridge
-lxc network set $NETWORK_NAME \
+lxc network set "$network_name" \
     ipv6.address none        
 
 # Configure ipv4 & ipv6 address on bridge [true/false]
 #echo "[f07.4r] Disabling Bridge Address"
 # configure ipv4 nat setting
-#lxc network set $NETWORK_NAME \
+#lxc network set "$network_name" \
 #    ipv4.nat $NATv4          
-#    echo "$SEP_2 Switching ipv4 nat to $NATv4"
+#    echo "$sep_2 Switching ipv4 nat to $NATv4"
 # configure ipv4 nat setting
-#lxc network set $NETWORK_NAME \
+#lxc network set "$network_name" \
 #    ipv6.nat $NATv6          
-#    echo "$SEP_2 Switching ipv6 nat to $NATv6"
+#    echo "$sep_2 Switching ipv6 nat to $NATv6"
 
 # Configure routing on bridge [enable/disable]
 echo "[f07.5r] Disabling Bridge Routing function"
 # set ipv4 routing
-#lxc network set $NETWORK_NAME \
+#lxc network set "$network_name" \
 #    ipv4.routing $ROUTEv4    
-#    echo "$SEP_2 Switching ipv4 routing to $DHCPv4"
+#    echo "$sep_2 Switching ipv4 routing to $DHCPv4"
 # Set ipv6 routing
-#lxc network set $NETWORK_NAME \
+#lxc network set "$network_name" \
 #    ipv6.routing $ROUTEv6    
-#    echo "$SEP_2 Switching ipv6 routing to $DHCPv6"
+#    echo "$sep_2 Switching ipv6 routing to $DHCPv6"
 
 # configure dhcp on bridge 
 # options: true false
 echo "[f07.6r] Disabling LXD DHCP Function"
 # set ipv4 dhcp
-lxc network set $NETWORK_NAME \
-    ipv4.dhcp $DHCPv4        
+lxc network set "$network_name" \
+    ipv4.dhcp "$DHCPv4"
 # set ipv6 dhcp
-lxc network set $NETWORK_NAME \
-    ipv6.dhcp $DHCPv6        
+lxc network set "$network_name" \
+    ipv6.dhcp "$DHCPv6"
 
 # Bridge nat+router+firewall settings
 echo "[f07.7r] Disabling LXD NAT+Firewall Function"
 # disable ipv4 firewall 
-lxc network set $NETWORK_NAME \
+lxc network set "$network_name" \
     ipv4.firewall false      
 # disable ipv6 firewall
-lxc network set $NETWORK_NAME \
+lxc network set "$network_name" \
     ipv6.firewall false      
 
 # Create associated lxd profile with default ethernet device name and storage
 # path
-echo "[f07.8r] Creating LXD Profile for $NETWORK_NAME"
-echo "$SEP_3
+echo "[f07.8r] Creating LXD Profile for $network_name"
+echo "$sep_3
 "
-lxc profile create $LXD_PROFILE
-lxc profile device add $NETWORK_NAME $LXD_PROFILE \
-    nic nictype=bridged parent=$NETWORK_NAME
-lxc profile device add $LXD_PROFILE \
+lxc profile create "$lxd_profile"
+lxc profile device add "$network_name" "$lxd_profile" \
+    nic nictype=bridged parent="$network_name"
+lxc profile device add "$lxd_profile" \
     root disk path=/ pool=default
 echo "
-$SEP_3"
-echo "[f07.0e] LXD Network \"$NETWORK_NAME\" Configuration Complete"
+$sep_3"
+echo "[f07.0e] LXD Network \"$network_name\" Configuration Complete"
 }
 
-check_DEFAULTS () {
-echo "[f06.0s]$SEP_1"
+
+######################################################################
+check_defaults () {
+echo "[f06.0s]$sep_1"
 echo "[f06.1r] Validating All LXD Configuration Variables"
-DEFAULT_CHECK_CONFIRM="Are you sure you want to continue building"
-if [ $NETWORK_NAME == $DEFAULT_NETWORK_NAME ]
+default_check_confirm="Are you sure you want to continue building"
+if [ "$network_name" == $default_network_name ]
     then
         echo "[f06.2r] WARN: Bridge Builder run with default value for OVS network configuration!"
         while true; do
-            read -p "$DEFAULT_CHECK_CONFIRM $NETWORK_NAME?" yn
+            read -p "$default_check_confirm $network_name?" yn
             case $yn in
                 [Yy]* ) echo "Continuing ...." ; break;;
                 [Nn]* ) exit;;
@@ -271,26 +280,28 @@ if [ $NETWORK_NAME == $DEFAULT_NETWORK_NAME ]
     done
     else 
         echo "[f06.3r]----------------------------------------------------------"
-        echo "       | Preparing to configure $NETWORK_NAME"
+        echo "       | Preparing to configure $network_name"
 fi
-echo "[f06.0e]$SEP_1"
+echo "[f06.0e]$sep_1"
 }
 
-set_LXD_DEFAULTS () {
+
+######################################################################
+set_lxd_defaults () {
 # Define default DNS domain assignment
-echo "[f05.0s]$SEP_1"
-echo "$SEP_2 Setting additional LXD Network and Profile Build Variables"
+echo "[f05.0s]$sep_1"
+echo "$sep_2 Setting additional LXD Network and Profile Build Variables"
 
 #DNS_DOMAIN="braincraft.io" 
 #echo "Setting Default Domain Name to $DNS_DOMAIN"
 
 # Set Working Dir for temp files such as network .xml definitions for KVM+QEMU
-IFACE_CFG_DIR="/root/network/"
+iface_cfg_dir="/root/network/"
 # Set LXD Profile name to match network name
-LXD_PROFILE=$NETWORK_NAME
+lxd_profile=$network_name
 
 # Configure default LXD container interface name
-LXD_ETHERNET="eth0"
+lxd_ethernet="eth0"
 
 # Configure DHCP function
 # Valid options "true|false"
@@ -301,188 +312,198 @@ DHCPv6="false"
 # Valid Options "true|false" 
 ROUTEv4="false"
 ROUTEv6="false"
-echo "[f05.0e]$SEP_1"
+echo "[f05.0e]$sep_1"
 }
 
-BUILD () {
+
+######################################################################
+build () {
 # Core Bridge Builder Feature
 # This function calls the child functions which build the bridge and configure
 # client services such as LXD and KVM+QEMU (virsh) for use with OVS
-echo "[f04.0s]$SEP_1"
+echo "[f04.0s]$sep_1"
 echo "[f04.1r] > Checking System Readiness"
-check_SERVICE_HEALTH
-echo "[f04.2r]$SEP_2 > Setting LXD Default Variables"
-set_LXD_DEFAULTS
-echo "[f04.3r]$SEP_2 > Checking LXD Variables"
-check_DEFAULTS
-echo "[f04.4r]$SEP_2 > purging any pre-existing $NETWORK_NAME configuration"
-purge_NETWORK
-echo "[f04.5r]$SEP_2 > Starting LXD Configuration"
+check_service_health
+echo "[f04.2r]$sep_2 > Setting LXD Default Variables"
+set_lxd_defaults
+echo "[f04.3r]$sep_2 > Checking LXD Variables"
+check_defaults
+echo "[f04.4r]$sep_2 > purging any pre-existing $network_name configuration"
+purge_network
+echo "[f04.5r]$sep_2 > Starting LXD Configuration"
 config_LXD
 
-config_LIBVIRT
-show_CONFIG
-echo "[f04.0s]$SEP_1"
+config_libvirt
+show_config
+echo "[f04.0s]$sep_1"
 }
 
-purge_NETWORK () {
+
+######################################################################
+purge_network () {
 # Purge any conflicting networks ) --purge | -p
-if [ $PURGE_NETWORK = "false" ]
+if [ "$purge_network" = "false" ]
 then
-    PURGE_NETWORK=$NETWORK_NAME
+    purge_network=$network_name
 fi
-echo "[f03.0s]$SEP_1"
-echo "[f03.1r] Purging $PURGE_NETWORK from  LXD Network and Profile configuration"
-    lxc network delete $PURGE_NETWORK > /dev/null 2>&1 ;
-    lxc profile delete $LXD_PROFILE > /dev/null 2>&1 
-echo "$SEP_2  > Purged $PURGE_NETWORK from LXD configuration"
-echo "[f03.2r] Purging $PURGE_NETWORK from Libvirt Network Configuration"
-    virsh net-undefine $PURGE_NETWORK > /dev/null 2>&1 ;
-    virsh net-destroy $PURGE_NETWORK > /dev/null 2>&1 ;
-echo "$SEP_2  > Purged $PURGE_NETWORK from Libvirt configuration"
+echo "[f03.0s]$sep_1"
+echo "[f03.1r] Purging $purge_network from  LXD Network and Profile configuration"
+    lxc network delete "$purge_network" > /dev/null 2>&1 ;
+    lxc profile delete "$lxd_profile" > /dev/null 2>&1 
+echo "$sep_2  > Purged $purge_network from LXD configuration"
+echo "[f03.2r] Purging $purge_network from Libvirt Network Configuration"
+    virsh net-undefine "$purge_network" > /dev/null 2>&1 ;
+    virsh net-destroy "$purge_network" > /dev/null 2>&1 ;
+echo "$sep_2  > Purged $purge_network from Libvirt configuration"
 echo "[f03.3r] Purging OpenVswitch Configuration"
-    ovs-vsctl del-br $PURGE_NETWORK > /dev/null 2>&1  ;
-echo "$SEP_2  > Purged $PURGE_NETWORK from OpenVswitch configuration"
-echo "$SEP_2 Finished Purging $PURGE_NETWORK from system"
-echo "[f03.0e]$SEP_1"
+    ovs-vsctl del-br "$purge_network" > /dev/null 2>&1  ;
+echo "$sep_2  > Purged $purge_network from OpenVswitch configuration"
+echo "$sep_2 Finished Purging $purge_network from system"
+echo "[f03.0e]$sep_1"
 }
 
-check_SERVICE_HEALTH () {
+
+######################################################################
+check_service_health () {
 # Confirm OVS/LXD/Libvirtd services are all running ) --health | -H
-echo "[f02.0s]$SEP_1"
-echo "$SEP_2 Checking service health"
-LXD_STATUS=$(systemctl is-active $LXD_SERVICE)
-LXD_ENABLED=$(systemctl is-enabled $LXD_SERVICE)
-    if [ $LXD_STATUS != "active" ] 
+echo "[f02.0s]$sep_1"
+echo "$sep_2 Checking service health"
+lxd_status=$(systemctl is-active $lxd_service)
+lxd_enabled=$(systemctl is-enabled $lxd_service)
+    if [ "$lxd_status" != "active" ] 
     then
-        echo "$SEP_2 $LXD_SERVICE does not appear to be running"
-        echo "$SEP_2 Starting $LXD_SERVICE "
-        systemctl start $LXD_SERVICE
-        LXD_STATUS=$(systemctl is-active $LXD_SERVICE)
+        echo "$sep_2 $lxd_service does not appear to be running"
+        echo "$sep_2 Starting $lxd_service "
+        systemctl start $lxd_service
+        lxd_status=$(systemctl is-active $lxd_service)
     fi
-    if [ $LXD_ENABLED != "enabled" ] && [ $LXD_ENABLED != "indirect" ] 
+    if [ "$lxd_enabled" != "enabled" ] && [ "$lxd_enabled" != "indirect" ] 
     then
-        echo "$SEP_2 $LXD_SERVICE does not appear to be enabled"
-        echo "$SEP_2 Enabling $LXD_SERVICE"
-        systemctl enable $LXD_SERVICE
-        LXD_ENABLED=$(systemctl is-enabled $LXD_SERVICE)
+        echo "$sep_2 $lxd_service does not appear to be enabled"
+        echo "$sep_2 Enabling $lxd_service"
+        systemctl enable $lxd_service
+        lxd_enabled=$(systemctl is-enabled $lxd_service)
     fi
-echo "[f02.1r]$SEP_1"
-echo "$SEP_2 LXD Daemon is $LXD_STATUS & $LXD_ENABLED"
-    if [ $LXD_STATUS != "active" ] && [ $LXD_ENABLED != "enabled" ]
+echo "[f02.1r]$sep_1"
+echo "$sep_2 LXD Daemon is $lxd_status & $lxd_enabled"
+    if [ "$lxd_status" != "active" ] && [ "$lxd_enabled" != "enabled" ]
     then
-        echo "$SEP_2 LXD Service is not running or enabled persistently"
-        echo "$SEP_2 Install/Enable and initialize LXD service or check configuration and try again"
+        echo "$sep_2 LXD Service is not running or enabled persistently"
+        echo "$sep_2 Install/Enable and initialize LXD service or check configuration and try again"
         exit 0
     else
-        echo "$SEP_2 LXD Service is READY"
+        echo "$sep_2 LXD Service is READY"
     fi
-echo "[f02.2r]$SEP_1"
-LIBVIRT_STATUS=$(systemctl is-active $LIBVIRT_SERVICE)
-LIBVIRT_ENABLED=$(systemctl is-enabled $LIBVIRT_SERVICE)
-    if [ $LIBVIRT_STATUS != "active" ]
+echo "[f02.2r]$sep_1"
+libvirt_status=$(systemctl is-active $libvirt_service)
+libvirt_enabled=$(systemctl is-enabled $libvirt_service)
+    if [ "$libvirt_status" != "active" ]
     then
-        systemctl start $LIBVIRT_SERVICE
-        LIBVIRT_STATUS=$(systemctl is-active $LIBVIRT_SERVICE)
+        systemctl start $libvirt_service
+        libvirt_status=$(systemctl is-active $libvirt_service)
     fi
-    if [ $LIBVIRT_ENABLED != "enabled" ]
+    if [ "$libvirt_enabled" != "enabled" ]
     then
-        systemctl start $LIBVIRT_SERVICE
-        LIBVIRT_ENABLED=$(systemctl is-active $LIBVIRT_SERVICE)
+        systemctl start $libvirt_service
+        libvirt_enabled=$(systemctl is-active $libvirt_service)
     fi
-echo "$SEP_2 Libvirt Daemon is $LIBVIRT_STATUS & $LIBVIRT_ENABLED"
-    if [ $LIBVIRT_STATUS != "active" ] && [ $LIBVIRT_ENABLED != "enabled" ]
+echo "$sep_2 Libvirt Daemon is $libvirt_status & $libvirt_enabled"
+    if [ "$libvirt_status" != "active" ] && [ "$libvirt_enabled" != "enabled" ]
     then
-        echo "$SEP_2 Libvirtd Service is not running or enabled persistently"
-        echo "$SEP_2 Install/Enable Libvirtd service or check configuration and try again"
+        echo "$sep_2 Libvirtd Service is not running or enabled persistently"
+        echo "$sep_2 Install/Enable Libvirtd service or check configuration and try again"
         exit 0
     else
-        echo "$SEP_2 Libvirtd Service is READY"
+        echo "$sep_2 Libvirtd Service is READY"
     fi
-echo "[f02.3r]$SEP_1"
-OVS_STATUS=$(systemctl is-active $OVS_SERVICE)
-OVS_ENABLED=$(systemctl is-enabled $OVS_SERVICE)
-    if [ $OVS_STATUS != "active" ] 
+echo "[f02.3r]$sep_1"
+ovs_status=$(systemctl is-active $ovs_service)
+ovs_enabled=$(systemctl is-enabled $ovs_service)
+    if [ "$ovs_status" != "active" ] 
     then
-        systemctl start $OVS_SERVICE
-        OVS_STATUS=$(systemctl is-active $OVS_SERVICE)
+        systemctl start $ovs_service
+        ovs_status=$(systemctl is-active $ovs_service)
     fi
-    if [ $OVS_ENABLED != "enabled" ]
+    if [ "$ovs_enabled" != "enabled" ]
     then
-        systemctl enable $OVS_SERVICE
-        OVS_ENABLED=$(systemctl is-enabled $OVS_SERVICE)
+        systemctl enable $ovs_service
+        ovs_enabled=$(systemctl is-enabled $ovs_service)
     fi
-echo "$SEP_2 OVS Daemon is $OVS_STATUS & $OVS_ENABLED"
-    if [ $OVS_STATUS != "active" ] && [ $OVS_ENABLED != "enabled" ]
+echo "$sep_2 OVS Daemon is $ovs_status & $ovs_enabled"
+    if [ "$ovs_status" != "active" ] && [ "$ovs_enabled" != "enabled" ]
     then
-        echo "$SEP_2 OVS Service is not running or enabled persistently"
-        echo "$SEP_2 Install/Enable OpenVswitch or check configuration and try again"
+        echo "$sep_2 OVS Service is not running or enabled persistently"
+        echo "$sep_2 Install/Enable OpenVswitch or check configuration and try again"
         exit 0
     else
-        echo "$SEP_2 OVS Service is READY"
+        echo "$sep_2 OVS Service is READY"
     fi
-echo "[f02.0e]$SEP_1"
+echo "[f02.0e]$sep_1"
 }
 
-show_CONFIG () {
+
+######################################################################
+show_config () {
 # Show current networks configured for OVS/LXD/KVM+QEMU ) --show | -s
-echo "[f01.0s]$SEP_1"
-echo "$SEP_2 Showing Local Bridge Configuration"
-echo "[f01.0s]$SEP_1"
-echo "$SEP_2"
+echo "[f01.0s]$sep_1"
+echo "$sep_2 Showing Local Bridge Configuration"
+echo "[f01.0s]$sep_1"
+echo "$sep_2"
 #Checking System Service Status
-OVS_SERVICE_STATUS=$(systemctl is-active $OVS_SERVICE)
-LXD_SERVICE_STATUS=$(systemctl is-active $LXD_SERVICE)
-LIBVIRT_SERVICE_STATUS=$(systemctl is-active $LIBVIRT_SERVICE)
+ovs_service_status=$(systemctl is-active $ovs_service)
+lxd_service_status=$(systemctl is-active $lxd_service)
+libvirt_service_status=$(systemctl is-active $libvirt_service)
 # List Openvswitch Networks
-echo "$SEP_2         $OVS_SERVICE = $OVS_SERVICE_STATUS"
-echo "$SEP_2                        $LXD_SERVICE = $LXD_SERVICE_STATUS"
-echo "$SEP_2                   $LIBVIRT_SERVICE = $LIBVIRT_SERVICE_STATUS"
-echo "$SEP_2"
-echo "$SEP_3
+echo "$sep_2         $ovs_service = $ovs_service_status"
+echo "$sep_2                        $lxd_service = $lxd_service_status"
+echo "$sep_2                   $libvirt_service = $libvirt_service_status"
+echo "$sep_2"
+echo "$sep_3
  "
-if [ "$OVS_SERVICE_STATUS" = active ]
+if [ "$ovs_service_status" = active ]
     then
         echo "[f01.1r] > OpenVSwitch Configuration <"
-        echo "$SEP_3
+        echo "$sep_3
         "
         ovs-vsctl show
         echo "
-$SEP_3"
+$sep_3"
     else
-        echo "$SEP_2 ERROR: The OpenVSwitch System Service IS NOT RUNNING"
+        echo "$sep_2 ERROR: The OpenVSwitch System Service IS NOT RUNNING"
 fi
 # List LXD Networks
-if [ "$LXD_SERVICE_STATUS" = "active" ]
+if [ "$lxd_service_status" = "active" ]
     then
         echo "[f01.2r] > LXD Networks List <"
-echo "$SEP_3
+echo "$sep_3
         "
         lxc network list
         echo "
-$SEP_3"
+$sep_3"
     else
-        echo "$SEP_2 ERROR: The LXD System Service IS NOT RUNNING"
+        echo "$sep_2 ERROR: The LXD System Service IS NOT RUNNING"
 fi
 # List LibVirtD Networks
-if [ "$LIBVIRT_SERVICE_STATUS" = "active" ]
+if [ "$libvirt_service_status" = "active" ]
     then
         echo "[f01.3r] > LibVirtD Network Configuration < "
-        echo "$SEP_3
+        echo "$sep_3
         "
         virsh net-list --all
         echo "
-$SEP_3"
+$sep_3"
     else
-        echo "$SEP_2 ERROR: The LibVirtD System Service IS NOT RUNNING"
+        echo "$sep_2 ERROR: The LibVirtD System Service IS NOT RUNNING"
 fi
-echo "[f01.0e]$SEP_1"
+echo "[f01.0e]$sep_1"
 }
 
-show_HELP () {
+
+######################################################################
+show_help () {
     # Show Help menu ) --help | -h
-    echo "[f0h.0s]$SEP_1"
-    echo "$SEP_3"
+    echo "[f0h.0s]$sep_1"
+    echo "$sep_3"
     echo "
     syntax:
        command [option] [value]
@@ -494,7 +515,7 @@ show_HELP () {
         \_______       
                 \_Launch a container with the \"lxd profile\" flag to attach
                 |    Example:                                               
-                |      lxc launch ubuntu: test-container -p \$NETWORK_NAME 
+                |      lxc launch ubuntu: test-container -p \$network_name 
 
        Libvirt Guests:
         \_______
@@ -506,8 +527,8 @@ show_HELP () {
        Physical Ports:
         \_______
                 \_Attach Physical Ports via the following
-                |   Example with physical device name "eth0"
-                |      ovs-vsctl add-port $NETWORK_NAME eth0
+                |   Example with physical device name eth0
+                |      ovs-vsctl add-port $network_name eth0
 
     Options:
        --help            -h    --    Print this help menu
@@ -520,60 +541,62 @@ show_HELP () {
                                         Libvirt Bridge
                                         LXD Network & Profile Name
     "
-    echo "$SEP_3"
-    echo "[f0h.0e]$SEP_1"
+    echo "$sep_3"
+    echo "[f0h.0e]$sep_1"
 }
 
-RUN () {
+
+######################################################################
+run () {
 # Initial function that determines behavior from command line flags
-if [ $SHOW_HELP != 'false' ]
+if [ $show_help != 'false' ]
 then
     echo "[f0h.0o]<"
-        show_HELP
-        echo "$SEP_2 OVS_BridgeBuilder_VERSION = $OBB_VERSION"
-        echo "[f0h.0c]$SEP_1"
+        show_help
+        echo "$sep_2 OVS_BridgeBuilder_VERSION = $obb_version"
+        echo "[f0h.0c]$sep_1"
     exit 0
 fi
-if [ $SHOW_CONFIG != 'false' ]
+if [ $show_config != 'false' ]
 then
     echo "[f01.0o]<"
-        show_CONFIG
-    echo "[f01.0c]$SEP_1"
+        show_config
+    echo "[f01.0c]$sep_1"
     exit 0
 fi
-if [ $SHOW_HEALTH != 'false' ]
+if [ $show_health != 'false' ]
 then
     echo "[f02.0o]<"
-        check_SERVICE_HEALTH
-        echo "[q00.3c]$SEP_1"
+        check_service_health
+        echo "[q00.3c]$sep_1"
     exit 0
 fi
-if [ $PURGE_NETWORK != 'false' ]
+if [ "$purge_network" != 'false' ]
 then
     echo "[f03.0o]<"
-    echo "$SEP_2 Purging $PURGE_NETWORK ..."
-        purge_NETWORK
-        show_CONFIG
-        echo "$SEP_2 Removed $PURGE_NETWORK"
-    echo "[f03.0c]$SEP_1"
+    echo "$sep_2 Purging $purge_network ..."
+        purge_network
+        show_config
+        echo "$sep_2 Removed $purge_network"
+    echo "[f03.0c]$sep_1"
     exit 0
 fi
-  if [ $SHOW_HELP == 'false' ]     && \
-     [ $SHOW_CONFIG == 'false' ]   && \
-     [ $SHOW_HEALTH == 'false' ]   && \
-     [ $PURGE_NETWORK == 'false' ]
+  if [ $show_help == 'false' ]     && \
+     [ $show_config == 'false' ]   && \
+     [ $show_health == 'false' ]   && \
+     [ "$purge_network" == 'false' ]
 then
     echo "[f04.0o]<"
-        BUILD
+        build
     echo "[f04.1r]<"
-        end_BUILD
+        end_build
     echo "[f04.0c]"
     exit 0
 else
-    echo "$SEP_2 ERROR: Unable to parse comand line options .. EXITING!"
+    echo "$sep_2 ERROR: Unable to parse comand line options .. EXITING!"
     exit 0
 fi
 }
 
 # Start initial function that determines behavior from command line flags
-RUN
+run
