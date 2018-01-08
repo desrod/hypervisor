@@ -348,6 +348,16 @@ echo "[f02.0s]$SEP_1"
 echo "$SEP_2 Checking service health"
 LXD_STATUS=$(systemctl is-active $LXD_SERVICE)
 LXD_ENABLED=$(systemctl is-enabled $LXD_SERVICE)
+    if [ $LXD_STATUS != "active" ]
+    then
+        systemctl start $LXD_SERVICE
+        LXD_STATUS=$(systemctl is-active $LXD_SERVICE)
+    fi
+    if [ $LXD_ENABLED != "enabled" ]
+    then
+        systemctl enable $LXD_SERVICE
+        LXD_ENABLED=$(systemctl is-enabled $LXD_SERVICE)
+    fi
 echo "[f02.1r]$SEP_1"
 echo "$SEP_2 LXD Daemon is $LXD_STATUS & $LXD_ENABLED"
     if [ $LXD_STATUS != "active" ] && [ $LXD_ENABLED != "enabled" ]
@@ -361,6 +371,16 @@ echo "$SEP_2 LXD Daemon is $LXD_STATUS & $LXD_ENABLED"
 echo "[f02.2r]$SEP_1"
 LIBVIRT_STATUS=$(systemctl is-active $LIBVIRT_SERVICE)
 LIBVIRT_ENABLED=$(systemctl is-enabled $LIBVIRT_SERVICE)
+    if [ $LIBVIRT_STATUS != "active" ]
+    then
+        systemctl start $LIBVIRT_SERVICE
+        LIBVIRT_STATUS=$(systemctl is-active $LIBVIRT_SERVICE)
+    fi
+    if [ $LIBVIRT_ENABLED != "enabled" ]
+    then
+        systemctl start $LIBVIRT_SERVICE
+        LIBVIRT_ENABLED=$(systemctl is-active $LIBVIRT_SERVICE)
+    fi
 echo "$SEP_2 Libvirt Daemon is $LIBVIRT_STATUS & $LIBVIRT_ENABLED"
     if [ $LIBVIRT_STATUS != "active" ] && [ $LIBVIRT_ENABLED != "enabled" ]
     then
@@ -373,6 +393,16 @@ echo "$SEP_2 Libvirt Daemon is $LIBVIRT_STATUS & $LIBVIRT_ENABLED"
 echo "[f02.3r]$SEP_1"
 OVS_STATUS=$(systemctl is-active $OVS_SERVICE)
 OVS_ENABLED=$(systemctl is-enabled $OVS_SERVICE)
+    if [ $OVS_STATUS != "active" ] 
+    then
+        systemctl start $OVS_SERVICE
+        OVS_STATUS=$(systemctl is-active $OVS_SERVICE)
+    fi
+    if [ $OVS_ENABLED != "enabled" ]
+    then
+        systemctl enable $OVS_SERVICE
+        OVS_ENABLED=$(systemctl is-enabled $OVS_SERVICE)
+    fi
 echo "$SEP_2 OVS Daemon is $OVS_STATUS & $OVS_ENABLED"
     if [ $OVS_STATUS != "active" ] && [ $OVS_ENABLED != "enabled" ]
     then

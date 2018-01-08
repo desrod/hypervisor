@@ -232,8 +232,7 @@ OVS_PKGS="openvswitch-common \
           openvswitch-switch"
 OVS_DPDK_PKGS="dkms 
                dpdk \
-	           dpdk-dev \
-	           dpdk-igb-uio-dkms \
+	       dpdk-dev \
                openvswitch-switch-dpdk"
 
 	apt install -y $OVS_PKGS $OVS_DPDK_PKGS
