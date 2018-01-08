@@ -45,6 +45,7 @@ LIBVIRT_SERVICE="libvirtd.service"
 DEFAULT_NETWORK_NAME="obb"
 NETWORK_NAME="$DEFAULT_NETWORK_NAME"
 TMP_FILE_STORE=/tmp/bridge-builder/
+BRIDGE_DRIVER="openvswitch"
 PURGE_NETWORK=false
 SHOW_CONFIG=false
 SHOW_HEALTH=false
@@ -142,7 +143,7 @@ echo "$SEP_3
  "
     virsh net-define $VIRSH_XML_TARGET 
 echo "$SEP_3"
-echo "$SEP_2 Defined virsh network from $VIRSH_XML_FILE"
+echo "$SEP_2 > Defined virsh network from $VIRSH_XML_FILE"
 
 #Starting Libvirt network
 echo "$SEP_3"
@@ -171,7 +172,7 @@ echo "$SEP_3
 lxc network create $NETWORK_NAME 
 echo "
 $SEP_3"
-    echo "$SEP_2 Created LXD Network"
+    echo "$SEP_2 Created LXD Network $NETWORK_NAME"
 
 # Setup network driver type
 echo "[f07.1r]$SEP_1"
@@ -181,13 +182,13 @@ lxc network set $NETWORK_NAME \
 
 ## DNS configuration Options
 # define default domain name:
-echo "[f07.2r]$SEP_1"
-lxc network set $NETWORK_NAME \
-    dns.domain $DNS_DOMAIN 
-    echo "$SEP_2 Configured $NETWORK_NAME with default domain name: $DNS_DOMAIN"  
+#echo "[f07.2r]$SEP_1"
+#lxc network set $NETWORK_NAME \
+#    dns.domain $DNS_DOMAIN 
+#    echo "$SEP_2 Configured $NETWORK_NAME with default domain name: $DNS_DOMAIN"  
 # define dns mode = set via hostname
-lxc network set $NETWORK_NAME \
-    dns.mode dynamic         
+#lxc network set $NETWORK_NAME \
+#    dns.mode dynamic         
 
 echo "[f07.3r] Disabling LXD IP Configuration"
 # Set ipv4 address on bridge
@@ -198,26 +199,26 @@ lxc network set $NETWORK_NAME \
     ipv6.address none        
 
 # Configure ipv4 & ipv6 address on bridge [true/false]
-echo "[f07.4r] Disabling Bridge Address"
+#echo "[f07.4r] Disabling Bridge Address"
 # configure ipv4 nat setting
-lxc network set $NETWORK_NAME \
-    ipv4.nat $NATv4          
-    echo "$SEP_2 Switching ipv4 nat to $NATv4"
+#lxc network set $NETWORK_NAME \
+#    ipv4.nat $NATv4          
+#    echo "$SEP_2 Switching ipv4 nat to $NATv4"
 # configure ipv4 nat setting
-lxc network set $NETWORK_NAME \
-    ipv6.nat $NATv6          
-    echo "$SEP_2 Switching ipv6 nat to $NATv6"
+#lxc network set $NETWORK_NAME \
+#    ipv6.nat $NATv6          
+#    echo "$SEP_2 Switching ipv6 nat to $NATv6"
 
 # Configure routing on bridge [enable/disable]
 echo "[f07.5r] Disabling Bridge Routing function"
 # set ipv4 routing
-lxc network set $NETWORK_NAME \
-    ipv4.routing $ROUTEv4    
-    echo "$SEP_2 Switching ipv4 routing to $DHCPv4"
+#lxc network set $NETWORK_NAME \
+#    ipv4.routing $ROUTEv4    
+#    echo "$SEP_2 Switching ipv4 routing to $DHCPv4"
 # Set ipv6 routing
-lxc network set $NETWORK_NAME \
-    ipv6.routing $ROUTEv6    
-    echo "$SEP_2 Switching ipv6 routing to $DHCPv6"
+#lxc network set $NETWORK_NAME \
+#    ipv6.routing $ROUTEv6    
+#    echo "$SEP_2 Switching ipv6 routing to $DHCPv6"
 
 # configure dhcp on bridge 
 # options: true false
@@ -308,7 +309,7 @@ BUILD () {
 # This function calls the child functions which build the bridge and configure
 # client services such as LXD and KVM+QEMU (virsh) for use with OVS
 echo "[f04.0s]$SEP_1"
-echo "[f04.1r]$SEP_2 > Checking System Readiness"
+echo "[f04.1r] > Checking System Readiness"
 check_SERVICE_HEALTH
 echo "[f04.2r]$SEP_2 > Setting LXD Default Variables"
 set_LXD_DEFAULTS
@@ -326,6 +327,10 @@ echo "[f04.0s]$SEP_1"
 
 purge_NETWORK () {
 # Purge any conflicting networks ) --purge | -p
+if [ $PURGE_NETWORK = "false" ]
+then
+    PURGE_NETWORK=$NETWORK_NAME
+fi
 echo "[f03.0s]$SEP_1"
 echo "[f03.1r] Purging $PURGE_NETWORK from  LXD Network and Profile configuration"
     lxc network delete $PURGE_NETWORK > /dev/null 2>&1 ;
@@ -348,13 +353,17 @@ echo "[f02.0s]$SEP_1"
 echo "$SEP_2 Checking service health"
 LXD_STATUS=$(systemctl is-active $LXD_SERVICE)
 LXD_ENABLED=$(systemctl is-enabled $LXD_SERVICE)
-    if [ $LXD_STATUS != "active" ]
+    if [ $LXD_STATUS != "active" ] 
     then
+        echo "$SEP_2 $LXD_SERVICE does not appear to be running"
+        echo "$SEP_2 Starting $LXD_SERVICE "
         systemctl start $LXD_SERVICE
         LXD_STATUS=$(systemctl is-active $LXD_SERVICE)
     fi
-    if [ $LXD_ENABLED != "enabled" ]
+    if [ $LXD_ENABLED != "enabled" ] && [ $LXD_ENABLED != "indirect" ] 
     then
+        echo "$SEP_2 $LXD_SERVICE does not appear to be enabled"
+        echo "$SEP_2 Enabling $LXD_SERVICE"
         systemctl enable $LXD_SERVICE
         LXD_ENABLED=$(systemctl is-enabled $LXD_SERVICE)
     fi
